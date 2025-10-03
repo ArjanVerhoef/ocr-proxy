@@ -17,7 +17,6 @@ export default async function handler(req, res) {
 
              console.log('Ontvangen parameters:', { id, tid, tuser, api });
 
-             // Bepaal de upstream URL op basis van de route
              let upstreamUrl = 'https://api.haobo.org/api_get';
              if (req.url.includes('/api/proxy/start')) {
                  upstreamUrl = 'https://api.haobo.org/start';
