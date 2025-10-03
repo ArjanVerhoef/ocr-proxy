@@ -1,26 +1,56 @@
-import fetch from "node-fetch";
+// ESM + native fetch (Node 18+ op Vercel)
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-export default async (req, res) => {
+  // Preflight
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   try {
-    const { id, tid, tuser, api } = req.query;
-    if (!id || !tid || !tuser || !api) {
-      return res.status(400).send("Missing required parameters: id, tid, tuser, api");
+    // Body-parsing (alleen nodig bij @vercel/node; Next.js API zou dit voor je doen)
+    let body = {};
+    if (req.method === "POST") {
+      // Als Vercel het al geparsed heeft, is req.body een object; anders string
+      if (typeof req.body === "string") {
+        try {
+          body = JSON.parse(req.body || "{}");
+        } catch {
+          // niet-JSON body: laten we het leeg laten
+          body = {};
+        }
+      } else if (req.body && typeof req.body === "object") {
+        body = req.body;
+      }
     }
 
-    const apiUrl = "https://api.haobo.org/api_get";
+    // Params uit query OF body
+    const { id, tid, tuser, api } = {
+      ...req.query,
+      ...body
+    };
 
-    const response = await fetch(apiUrl, {
+    if (!id || !tid || !tuser || !api) {
+      return res
+        .status(400)
+        .json({ error: "Missing required parameters: id, tid, tuser, api" });
+    }
+
+    // Upstream POST (vereist door haobo API)
+    const upstream = await fetch("https://api.haobo.org/api_get", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, tid, tuser, api })
     });
 
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    const text = await upstream.text();
 
-    const data = await response.text();
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.status(200).send(data);
-  } catch (error) {
-    res.status(500).send(`Error: ${error.message}`);
+    // Handig voor debuggen: geef status door
+    return res.status(upstream.ok ? 200 : upstream.status).send(text);
+  } catch (err) {
+    return res.status(500).send(`Error: ${err?.message || err}`);
   }
-};
+}
