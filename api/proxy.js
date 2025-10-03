@@ -7,15 +7,27 @@ module.exports = async (req, res) => {
       return res.status(400).send('Missing required parameters: id, tid, tuser, api');
     }
 
-    const apiUrl = `https://api.haobo.org/api_get?id=${id}&tid=${tid}&tuser=${encodeURIComponent(tuser)}&api=${api}`;
-    
-    const response = await fetch(apiUrl);
+    const apiUrl = "https://api.haobo.org/api_get";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        tid,
+        tuser,
+        api
+      })
+    });
+
     if (!response.ok) throw new Error(`API error: ${response.status}`);
 
     const data = await response.text();
     res.setHeader('Access-Control-Allow-Origin', '*'); // Enable CORS
     res.status(200).send(data);
+
   } catch (error) {
     res.status(500).send(`Error: ${error.message}`);
   }
 };
+
