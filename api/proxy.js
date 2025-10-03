@@ -1,13 +1,10 @@
-// ESM + native fetch (Node 18+ op Vercel)
 export default async function handler(req, res) {
-  // CORS (incl. preflight)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
 
   try {
-    // Sta zowel GET ?query=... als POST JSON toe
     let bodyFromClient = {};
     if (req.method === "POST") {
       if (typeof req.body === "string") {
@@ -22,7 +19,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing required parameters: id, tid, tuser, api" });
     }
 
-    // POST naar haobo (JSON). Let op: id als string houden!
+    // Log de parameters om te debuggen
+    console.log("Verzonden naar externe API:", { id, tid, tuser, api });
+
     const upstream = await fetch("https://api.haobo.org/api_get", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -35,9 +34,10 @@ export default async function handler(req, res) {
     });
 
     const text = await upstream.text();
+    console.log("Antwoord van externe API:", text); // Log het antwoord
     return res.status(upstream.ok ? 200 : upstream.status).send(text);
   } catch (err) {
+    console.error("Fout in proxy:", err);
     return res.status(500).send(`Error: ${err?.message || err}`);
   }
 }
-
