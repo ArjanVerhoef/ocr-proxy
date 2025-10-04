@@ -1,5 +1,5 @@
-import { parse } from 'node:buffer';
 import formidable from 'formidable';
+import fs from 'fs/promises';
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,9 +24,12 @@ export default async function handler(req, res) {
 
         const upstreamUrl = 'https://api.getcid.vip/get_ocr';
 
+        // Lees de bestandsbuffer van het tijdelijke pad
+        const fileBuffer = await fs.readFile(image.filepath);
+
         // Maak FormData voor de upstream API
         const formData = new FormData();
-        formData.append('image', new Blob([await image.toBuffer()], { type: image.mimetype }), image.originalFilename || 'image.jpg');
+        formData.append('image', new Blob([fileBuffer], { type: image.mimetype }), image.originalFilename || 'image.jpg');
         formData.append('api', api[0]);
         formData.append('type', type[0]);
         formData.append('tid', tid[0]);
