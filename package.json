@@ -1,5 +1,5 @@
 {
-  "dependencies": {
-    "formidable": "^3.5.1"
-  }
+  "name": "ocr-proxy",
+  "version": "1.0.0",
+  "type": "module"
 }
