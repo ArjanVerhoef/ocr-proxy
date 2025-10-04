@@ -1,6 +1,3 @@
-import formidable from 'formidable';
-import fs from 'fs/promises';
-
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -8,38 +5,38 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(204).end();
 
     try {
-        // Parseer multipart/form-data met formidable
-        const form = formidable({ multiples: false });
-        const [fields, files] = await form.parse(req);
+        let bodyFromClient = {};
+        if (req.method === 'POST') {
+            if (typeof req.body === 'string') {
+                try { bodyFromClient = JSON.parse(req.body || '{}'); } catch { bodyFromClient = {}; }
+            } else if (req.body && typeof req.body === 'object') {
+                bodyFromClient = req.body;
+            }
+        }
+        const { id, tid, tuser, api } = { ...req.query, ...bodyFromClient };
 
-        const { api, type, tid, tuser } = fields;
-        const image = files.image?.[0];
+        console.log('Ontvangen parameters:', { id, tid, tuser, api });
 
-        console.log('Ontvangen parameters:', { api: api?.[0], type: type?.[0], tid: tid?.[0], tuser: tuser?.[0], image: image?.originalFilename });
+        const upstreamUrl = 'https://api.getcid.vip/api_get';
 
-        if (!image || !api?.[0] || !type?.[0] || !tid?.[0] || !tuser?.[0]) {
-            console.log('Ontbrekende parameters:', { api, type, tid, tuser, image });
-            return res.status(400).json({ error: 'Missing required parameters: image, api, type, tid, tuser' });
+        if (!id || !tid || !tuser || !api) {
+            console.log('Ontbrekende parameters:', { id, tid, tuser, api });
+            return res.status(400).json({ error: 'Missing required parameters: id, tid, tuser, api' });
         }
 
-        const upstreamUrl = 'https://api.getcid.vip/get_ocr';
+        // Formateer data als form-data (application/x-www-form-urlencoded)
+        const formData = new URLSearchParams();
+        formData.append('id', String(id));
+        formData.append('tid', String(tid));
+        formData.append('tuser', String(tuser));
+        formData.append('api', String(api)); // Gebruik de nieuwe werkende API-sleutel
 
-        // Lees de bestandsbuffer van het tijdelijke pad
-        const fileBuffer = await fs.readFile(image.filepath);
-
-        // Maak FormData voor de upstream API
-        const formData = new FormData();
-        formData.append('image', new Blob([fileBuffer], { type: image.mimetype }), image.originalFilename || 'image.jpg');
-        formData.append('api', api[0]);
-        formData.append('type', type[0]);
-        formData.append('tid', tid[0]);
-        formData.append('tuser', tuser[0]);
-
-        console.log('Verzenden naar nieuwe API als form-data:', { url: upstreamUrl, data: { image: image.originalFilename, api: api[0], type: type[0], tid: tid[0], tuser: tuser[0] } });
+        console.log('Verzenden naar nieuwe API als form-data:', { url: upstreamUrl, data: formData.toString() });
 
         const upstream = await fetch(upstreamUrl, {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
         });
 
         const text = await upstream.text();
@@ -50,9 +47,3 @@ export default async function handler(req, res) {
         return res.status(500).send(`Error: ${err?.message || err}`);
     }
 }
-
-export const config = {
-    api: {
-        bodyParser: false // Schakel standaard bodyParser uit voor formidable
-    }
-};
